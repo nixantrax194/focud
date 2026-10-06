@@ -3,10 +3,10 @@ name: Build Study Focus APK
 on:
   workflow_dispatch:
 
-  # Also build automatically whenever code is pushed to main.
   push:
     branches:
       - main
+      - master
 
 permissions:
   contents: read
@@ -18,92 +18,76 @@ jobs:
 
     steps:
 
-      # ---------------------------------------------------------
-      # 1. Download repository
-      # ---------------------------------------------------------
+      # 1. Checkout
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
 
-      # ---------------------------------------------------------
-      # 2. Install Java 17
-      # ---------------------------------------------------------
+      # 2. Java 17
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
 
 
-      # ---------------------------------------------------------
-      # 3. Set up Android SDK
-      #
-      # IMPORTANT:
-      # Do NOT add the deprecated "tools" package.
-      # ---------------------------------------------------------
+      # 3. Android SDK
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-          accept-android-sdk-licenses: true
 
 
-      # ---------------------------------------------------------
-      # 4. Show Android/Java versions
-      # Useful for debugging if something goes wrong.
-      # ---------------------------------------------------------
-      - name: Check build environment
+      # 4. Install required Android SDK packages
+      - name: Install Android SDK packages
         run: |
-          echo "===== JAVA ====="
-          java -version
+          sdkmanager "platform-tools"
+          sdkmanager "platforms;android-35"
+          sdkmanager "build-tools;35.0.0"
+
+          yes | sdkmanager --licenses > /dev/null || true
+
+
+      # 5. Check project structure
+      - name: Check project structure
+        run: |
+          echo "===== CURRENT DIRECTORY ====="
+          pwd
 
           echo ""
-          echo "===== ANDROID SDK ====="
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "===== PROJECT FILES ====="
+          find . -maxdepth 3 -type f \
+            \( -name "settings.gradle" -o -name "settings.gradle.kts" -o -name "build.gradle" -o -name "build.gradle.kts" \) \
+            -print
 
           echo ""
-          echo "===== ADB ====="
-          adb --version
-
-          echo ""
-          echo "===== SDK PACKAGES ====="
-          sdkmanager --list_installed | head -100
+          echo "===== STUDYFOCUS PROJECT ====="
+          ls -la StudyFocusAndroid
+          ls -la StudyFocusAndroid/app
 
 
-      # ---------------------------------------------------------
-      # 5. Install Gradle 8.9
-      #
-      # Your project uses Android Gradle Plugin 8.7.x,
-      # so Gradle 8.9 is used here.
-      # ---------------------------------------------------------
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+      # 6. Install Gradle
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.7'
 
 
-      # ---------------------------------------------------------
-      # 6. Verify Gradle
-      # ---------------------------------------------------------
+      # 7. Verify Gradle
       - name: Check Gradle
         run: |
           gradle --version
 
 
-      # ---------------------------------------------------------
-      # 7. Make sure Gradle can execute
-      # ---------------------------------------------------------
-      - name: Prepare project
+      # 8. Check Gradle modules
+      - name: Check Gradle projects
+        working-directory: StudyFocusAndroid
         run: |
-          chmod +x gradlew 2>/dev/null || true
+          gradle projects --no-daemon --stacktrace
 
 
-      # ---------------------------------------------------------
-      # 8. Build DEBUG APK
-      # ---------------------------------------------------------
+      # 9. Build APK
       - name: Build Study Focus APK
+        working-directory: StudyFocusAndroid
         run: |
           gradle :app:assembleDebug \
             --no-daemon \
@@ -111,22 +95,21 @@ jobs:
             --warning-mode all
 
 
-      # ---------------------------------------------------------
-      # 9. Show generated APK
-      # ---------------------------------------------------------
+      # 10. Find APK
       - name: Find generated APK
         run: |
-          echo "===== GENERATED APK FILES ====="
-          find app/build/outputs/apk -type f -name "*.apk" -print
+          echo "===== GENERATED APK ====="
+          find StudyFocusAndroid/app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -print
 
 
-      # ---------------------------------------------------------
-      # 10. Upload APK to GitHub
-      # ---------------------------------------------------------
+      # 11. Upload APK
       - name: Upload Study Focus APK
         uses: actions/upload-artifact@v4
         with:
           name: StudyFocus-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: StudyFocusAndroid/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
