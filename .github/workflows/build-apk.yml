@@ -60,9 +60,9 @@ jobs:
             -print
 
           echo ""
-          echo "===== STUDYFOCUS PROJECT ====="
-          ls -la StudyFocusAndroid
-          ls -la StudyFocusAndroid/app
+          echo "===== PROJECT STRUCTURE ====="
+          ls -la
+          ls -la app
 
 
       # 6. Install Gradle
@@ -80,14 +80,12 @@ jobs:
 
       # 8. Check Gradle modules
       - name: Check Gradle projects
-        working-directory: StudyFocusAndroid
         run: |
           gradle projects --no-daemon --stacktrace
 
 
       # 9. Build APK
       - name: Build Study Focus APK
-        working-directory: StudyFocusAndroid
         run: |
           gradle :app:assembleDebug \
             --no-daemon \
@@ -99,7 +97,7 @@ jobs:
       - name: Find generated APK
         run: |
           echo "===== GENERATED APK ====="
-          find StudyFocusAndroid/app/build/outputs/apk \
+          find app/build/outputs/apk \
             -type f \
             -name "*.apk" \
             -print
@@ -110,6 +108,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: StudyFocus-debug-apk
-          path: StudyFocusAndroid/app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
